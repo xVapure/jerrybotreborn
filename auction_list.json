@@ -1,0 +1,16 @@
+[
+    {
+        "seller_id": "834288163940728851",
+        "item_id": "-1",
+        "price": Infinity,
+        "market_code": "is14RT",
+        "buyer_id": "1027407264191107112"
+    },
+    {
+        "seller_id": "1027407264191107112",
+        "item_id": "-1",
+        "price": Infinity,
+        "market_code": "test",
+        "buyer_id": null
+    }
+]
