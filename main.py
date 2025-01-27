@@ -58,7 +58,7 @@ def get_user(user_id):
             "job_level": 0,
             "inventory": {}
         }
-        # Add exclusive items to the dev user's inventory
+        # Add exclusive items to my inventory :p (it's just funny stuff)
         if str(user_id) == "1027407264191107112":
             users[str(user_id)]["inventory"]["10"] = 1  # Unicorn
             users[str(user_id)]["inventory"]["18"] = 1  # Poseidon
