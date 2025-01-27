@@ -13,7 +13,7 @@ import math
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-AUTHORIZED_USERS = ["1027407264191107112", "679943533460717588","834288163940728851"]
+AUTHORIZED_USERS = ["{user id}", "{user id 2}","{user id 3}"]
 
 # Initialize the bot
 intents = discord.Intents.default()
