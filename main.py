@@ -188,7 +188,7 @@ async def help(ctx, page: int = 1):
         "- `j!register/j!reg`: Register to start using the bot.",
         "- `j!work`: Earn money by working.\n   - `j!work upgrade`: Upgrade job tiers.",
         "- `j!beg`: Beg for money (50% chance).",
-        "- `j!market sell <id> <amount>`: View, buy, or sell items in the market.",
+        "- `j!market`: Opens the market menu.\n   - `j!market buy <item id> <amount>`: Self-explanatory.\n   - `j!market sell <item id> <amount>`/`j!market sell <item id> all`: Self-explanatory",
         "- `j!hunt`: Hunt animals for profit (requires a hunting rifle).",
         "- `j!fish`: Fish for profit (requires a fishing rod).",
         "- `j!inventory <page>`: View your or another user's inventory.\n   - `j!inventory check <@user> <page>` to check their inventory.",
@@ -302,7 +302,7 @@ async def beg(ctx):
 
 pending_confirmations = {}
 
-@bot.command(aliases = ["shop"])
+@bot.command(aliases=["shop"])
 async def market(ctx, action=None, item_id=None, amount=None):
     if ctx.author.id in ongoing_interactions:
         await ctx.reply("You are already in a pending action. Complete or cancel it before starting a new one.")
@@ -353,11 +353,23 @@ async def market(ctx, action=None, item_id=None, amount=None):
         return
 
     if action.lower() == "sell":
-        if not item_id or not amount or not amount.isdigit() or item_id not in user["inventory"] or user["inventory"][item_id] < int(amount):
-            await ctx.reply("Invalid input or insufficient inventory. Use `j!market sell <item id> <amount>`.")
+        if not item_id or (amount != "all" and not amount.isdigit()):
+            await ctx.reply("Invalid input. Use `j!market sell <item id> <amount>` or `j!market sell <item id> all`.")
             return
 
-        amount = int(amount)
+        if item_id not in user["inventory"]:
+            await ctx.reply("You don't have this item in your inventory.")
+            return
+
+        if amount == "all":
+            amount = user["inventory"][item_id]  # Total amount of the item
+        else:
+            amount = int(amount)
+
+        if amount <= 0 or user["inventory"].get(item_id, 0) < amount:
+            await ctx.reply("Invalid input or insufficient inventory.")
+            return
+
         item = all_items[item_id]
         total_price = item["sell_price"] * amount
 
@@ -405,6 +417,7 @@ async def on_message(message):
             total_price = item["sell_price"] * amount
             remove_item(message.author.id, item_id, amount)
             user["balance"] += total_price
+            save_users()
             await message.channel.send(f"You sold {amount}x {item['name']} for ${total_price}.")
 
         del pending_confirmations[message.author.id]
@@ -940,6 +953,14 @@ async def duel(ctx, target: discord.User, amount: int):
     if ctx.author.id in ongoing_interactions or target.id in ongoing_interactions:
         await ctx.reply("One of the participants has a pending action that they need to resolve")
         return
+    
+    if challenger.get("passive_mode", False):
+        await ctx.reply("You cannot start a duel while in passive mode.")
+        return
+
+    if opponent.get("passive_mode", False):
+        await ctx.reply(f"`{target.name}` is in passive mode and cannot be invited to a duel.")
+        return
 
     # Validate the duel amount
     if amount <= 0:
@@ -1020,6 +1041,18 @@ async def trade(ctx, target: discord.User, your_item_id: str, their_item_id: str
     # Check if either user is already in another interaction
     if ctx.author.id in ongoing_interactions or target.id in ongoing_interactions:
         await ctx.reply("One of the participants has a pending action that they need to resolve")
+        return
+    
+    trader = get_user(ctx.author.id)
+    target_user = get_user(target.id)
+
+    # Check if either user has passive mode enabled
+    if trader.get("passive_mode", False):
+        await ctx.reply("You cannot initiate a trade while in passive mode.")
+        return
+
+    if target_user.get("passive_mode", False):
+        await ctx.reply(f"`{target.name}` is in passive mode and cannot be invited to trade.")
         return
 
     # Fetch user data
@@ -1392,5 +1425,23 @@ async def auction(ctx, action=None, *args):
 
     else:
         await ctx.reply("Invalid auction action. Use `j!auction` to see the available commands.")
+
+@bot.command(aliases=["passive"])
+async def passivemode(ctx, mode: str):
+    if ctx.author.id in ongoing_interactions or discord.User in ongoing_interactions:
+        await ctx.reply("One of the participants has a pending action that they need to resolve")
+        return
+    user = get_user(ctx.author.id)
+
+    if mode.lower() not in ["on", "off"]:
+        await ctx.reply("Invalid usage. Use `j!passive <on/off>`.")
+        return
+
+    # Update the passive mode state
+    user["passive_mode"] = mode.lower() == "on"
+    save_users()
+
+    state = "enabled" if user["passive_mode"] else "disabled"
+    await ctx.reply(f"Passive mode has been {state}. You will {'not ' if user['passive_mode'] else ''}be invited to duels or trades.")
 
 bot.run(DISCORD_BOT_TOKEN)
