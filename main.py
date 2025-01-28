@@ -203,9 +203,9 @@ async def help(ctx, page: int = 1):
         "- `j!resetdata`: Reset a user's data (admin only).",
         "- `j!setbal <@user> <amount>`: Set a user's balance (admin only).",
         "- `j!spawn <item id>`: Spawn an item (admin only).",
-        "- `j!auction`: Opens the auction help menu."
-        "- `j!itemlist <page>`: Self-explanatory."
-        "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels."
+        "- `j!auction`: Opens the auction help menu.",
+        "- `j!itemlist <page>`: Self-explanatory.",
+        "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels.",
     ]
 
     items_per_page = 10
