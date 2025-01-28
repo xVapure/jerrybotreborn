@@ -3,9 +3,9 @@ A Discord bot with economics features, I'm too lazy to explain just setup and us
 
 **HOW TO INSTALL?**
 
-- Have Pycord/Discord.py installed
+- Have Pycord/Discord.py installed.
 - Download the files.
-- Go to .env and replace <enter your bot token here> with your Discord bot token
+- Go to .env and replace <enter your bot token here> with your Discord bot token.
 - Done! Go take a look inside the code and modify changes however you want.
 
 
