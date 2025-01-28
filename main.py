@@ -320,7 +320,7 @@ async def market(ctx, action=None, item_id=None, amount=None):
     if action is None:
         # Default action to display market items
         page = int(item_id) if item_id and item_id.isdigit() else 1
-        items_per_page = 5
+        items_per_page = 100
         total_pages = -(-len(market_items) // items_per_page)  # Calculate total pages
 
         if page < 1 or page > total_pages:
