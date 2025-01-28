@@ -13,7 +13,7 @@ import math
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-AUTHORIZED_USERS = ["{user id}", "{user id 2}","{user id 3}"]
+AUTHORIZED_USERS = ["1027407264191107112", "679943533460717588","834288163940728851"]
 
 # Initialize the bot
 intents = discord.Intents.default()
@@ -58,7 +58,7 @@ def get_user(user_id):
             "job_level": 0,
             "inventory": {}
         }
-        # Add exclusive items to my inventory :p (it's just funny stuff)
+        # Add exclusive items to the dev user's inventory
         if str(user_id) == "1027407264191107112":
             users[str(user_id)]["inventory"]["10"] = 1  # Unicorn
             users[str(user_id)]["inventory"]["18"] = 1  # Poseidon
@@ -205,6 +205,7 @@ async def help(ctx, page: int = 1):
         "- `j!spawn <item id>`: Spawn an item (admin only).",
         "- `j!auction`: Opens the auction help menu."
         "- `j!itemlist <page>`: Self-explanatory."
+        "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels."
     ]
 
     items_per_page = 10
