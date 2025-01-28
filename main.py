@@ -111,7 +111,8 @@ market_items = {
     "2": {"name": "Hunting Rifle", "price": 150, "sell_price": 20, "usable":"no"},
     "23": {"name": "Dragon's Lure", "price": 10000000, "sell_price": 30000, "usable":"yes"},
     "24": {"name": "Leviathan's Charm", "price": 10000000, "sell_price": 30000, "usable":"yes"},
-    "25": {"name": "Life-saver", "price": 320, "sell_price": 1, "usable":"yes"}
+    "25": {"name": "Life-saver", "price": 320, "sell_price": 1, "usable":"no"},
+    "26": {"name": "Pad lock", "price": 120, "sell_price": 1, "usable":"no"}
 }
 
 Admin_excl = {
@@ -148,7 +149,7 @@ Mutations = {
     "18.5": {"name": "Poseidon [MUTATED]", "probability": 0.0, "sell_price": 9e+19489293432984329342, "usable":"no"},
 }
 
-#Newest item is 25
+#Newest item is 26
 
 # Combine all items for easier inventory and sell logic
 all_items = {**market_items, **hunting_animals, **fishing_fish, **Admin_excl, **Other_items, **Mutations}
@@ -208,8 +209,9 @@ async def help(ctx, page: int = 1):
         "- `j!spawn <item id>`: Spawn an item (admin only).",
         "- `j!auction`: Opens the auction help menu.",
         "- `j!itemlist <page>`: Self-explanatory.",
-        "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels.",
-        "- `j!crime`: Opens the crime menu, you can earn cash when you complete a crime OR you could die and lose 40% of your balance and a random item inside your inventory."
+        "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels or from being robbed.",
+        "- `j!crime`: Opens the crime menu, you can earn cash when you complete a crime OR you could die and lose 40% of your balance and a random item inside your inventory.",
+        "- `j!rob <user>`: Robs an user for 20-50% of their balance (can be avoided if on passive mode)."
     ]
 
     items_per_page = 10
@@ -1434,21 +1436,36 @@ async def auction(ctx, action=None, *args):
 
 @bot.command(aliases=["passive"])
 async def passivemode(ctx, mode: str):
-    if ctx.author.id in ongoing_interactions or discord.User in ongoing_interactions:
-        await ctx.reply("One of the participants has a pending action that they need to resolve")
+    if ctx.author.id in ongoing_interactions:
+        await ctx.reply("You have a pending action to resolve.")
         return
-    user = get_user(ctx.author.id)
 
+    user = get_user(ctx.author.id)
+    now = datetime.utcnow()
+
+    # Check if cooldown applies
+    last_used = datetime.fromisoformat(user.get("last_passive_use", "1970-01-01T00:00:00"))
+    cooldown = timedelta(hours=10)
+
+    if now - last_used < cooldown:
+        remaining_time = cooldown - (now - last_used)
+        hours, remainder = divmod(remaining_time.seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
+        await ctx.reply(f"Passive mode can only be toggled every 10 hours. Try again in {hours}h {minutes}m.")
+        return
+
+    # Validate mode
     if mode.lower() not in ["on", "off"]:
         await ctx.reply("Invalid usage. Use `j!passive <on/off>`.")
         return
 
-    # Update the passive mode state
+    # Update passive mode state and save last usage time
     user["passive_mode"] = mode.lower() == "on"
+    user["last_passive_use"] = now.isoformat()
     save_users()
 
     state = "enabled" if user["passive_mode"] else "disabled"
-    await ctx.reply(f"Passive mode has been {state}. You will {'not ' if user['passive_mode'] else ''}be invited to duels or trades.")
+    await ctx.reply(f"Passive mode has been {state}. You will {'not ' if user['passive_mode'] else ''}be invited to duels or trades. You also cannot be robbed or rob from anyone.")
 
 import random
 
@@ -1493,7 +1510,7 @@ async def crime(ctx):
             "death_chance": 0.014,
             "success_chance": 0.45,
             "messages": {
-                "success": "You got away and stole ${earnings}.",
+                "success": "You got away and stole ${earnings} from an old grandma, does that make you proud?",
                 "fail": "You got caught but you ran away.",
                 "death": "You got caught and was beaten up to death."
             }
@@ -1538,7 +1555,7 @@ async def crime(ctx):
 
     # Notify the user of the choices
     crime_list = "\n".join([f"- {crime['name']}" for crime in selected_crimes])
-    await ctx.reply(f"Choose a crime to commit by typing its name or type 'crime cancel' to opt out:\n{crime_list}\n\nKeep in mind that you could die while committing a crime if you don't have a life-saver (id: 25) (resulting in a loss of a random item and 20% of your balance).")
+    await ctx.reply(f"Choose a crime to commit by typing its name or type 'crime cancel' to opt out:\n{crime_list}\n\nKeep in mind that you could die while committing a crime if you don't have a life-saver `id: 25` (resulting in a loss of a random item and 20% of your balance).")
 
     # Add user to ongoing interactions
     ongoing_interactions[ctx.author.id] = ctx.channel.id
@@ -1588,5 +1605,93 @@ async def crime(ctx):
 
     # Remove user from ongoing interactions
     ongoing_interactions.pop(ctx.author.id, None)
+
+@bot.command(aliases=["steal"])
+@commands.cooldown(1, 300, commands.BucketType.user)  # 5-minute cooldown
+async def rob(ctx, target: discord.User):
+    if ctx.author.id in ongoing_interactions or target.id in ongoing_interactions:
+        await ctx.reply("One of the participants has a pending action that they need to resolve.")
+        return
+
+    if str(ctx.author.id) in AUTHORIZED_USERS:
+        ctx.command.reset_cooldown(ctx)  # Reset cooldown for this command
+
+    # Get user and victim data
+    robber = get_user(ctx.author.id)
+    victim = get_user(target.id)
+
+    # Check if users are in passive mode
+    if robber.get("passive_mode", False):
+        await ctx.reply("You cannot rob while in passive mode.")
+        return
+
+    if victim.get("passive_mode", False):
+        await ctx.reply(f"`{target.name}` is in passive mode and cannot be robbed.")
+        return
+
+    # Check if the victim has been robbed in the last 10 minutes
+    if "last_robbed" in victim:
+        last_robbed = datetime.fromisoformat(victim["last_robbed"])
+        if datetime.utcnow() - last_robbed < timedelta(minutes=10):
+            await ctx.reply(f"`{target.name}` was recently robbed. Please wait before trying again.")
+            return
+
+    # Check if both robber and victim have sufficient balance
+    if robber["balance"] < 100:
+        await ctx.reply("You need at least $100 to attempt a robbery.")
+        return
+
+    if victim["balance"] < 100:
+        await ctx.reply(f"`{target.name}` does not have enough money to be robbed.")
+        return
+
+    # Check for pad lock protection
+    if victim["inventory"].get("26", 0) > 0:  # Pad lock ID: 26
+        victim["inventory"]["26"] -= 1  # Consume one pad lock
+        if victim["inventory"]["26"] == 0:
+            del victim["inventory"]["26"]
+
+        fine = int(robber["balance"] * 0.1)
+        robber["balance"] -= fine
+        save_users()
+
+        await ctx.reply(
+            f"`{target.name}` had a pad lock! The robbery failed, and you lost ${fine}. One pad lock was consumed from their inventory."
+        )
+        return
+
+    # Robbery attempt (50% success rate)
+    if random.random() < 0.5:
+        # Successful robbery
+        amount_stolen = random.randint(
+            int(victim["balance"] * 0.2), int(victim["balance"] * 0.5)
+        )
+        victim["balance"] -= amount_stolen
+        robber["balance"] += amount_stolen
+        victim["last_robbed"] = datetime.utcnow().isoformat()
+        save_users()
+
+        # Notify the victim in DMs
+        try:
+            await target.send(
+                f"You have been robbed by `{ctx.author.name}` and lost ${amount_stolen}."
+            )
+        except discord.Forbidden:
+            await ctx.reply(
+                f"Robbery successful, but I couldn't notify `{target.name}` in DMs."
+            )
+
+        await ctx.reply(
+            f"You successfully robbed `{target.name}` and stole ${amount_stolen}!"
+        )
+    else:
+        # Failed robbery
+        fine = int(robber["balance"] * 0.1)
+        robber["balance"] -= fine
+        save_users()
+
+        await ctx.reply(
+            f"The robbery failed! You were caught and had to pay a fine of ${fine}."
+        )
 
 bot.run(DISCORD_BOT_TOKEN)
