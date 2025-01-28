@@ -1,5 +1,6 @@
 # Jerry bot reborn (economic features)
-A Discord bot with economics features, I'm too lazy to explain just setup and use `j!help`\n
+A Discord bot with economics features, I'm too lazy to explain just setup and use `j!help`
+
 **HOW TO INSTALL?**
 
 - Have Pycord/Discord.py installed
