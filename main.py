@@ -110,7 +110,8 @@ market_items = {
     "1": {"name": "Fishing Rod", "price": 150, "sell_price": 20, "usable":"no"},
     "2": {"name": "Hunting Rifle", "price": 150, "sell_price": 20, "usable":"no"},
     "23": {"name": "Dragon's Lure", "price": 10000000, "sell_price": 30000, "usable":"yes"},
-    "24": {"name": "Leviathan's Charm", "price": 10000000, "sell_price": 30000, "usable":"yes"}
+    "24": {"name": "Leviathan's Charm", "price": 10000000, "sell_price": 30000, "usable":"yes"},
+    "25": {"name": "Life-saver", "price": 320, "sell_price": 1, "usable":"yes"}
 }
 
 Admin_excl = {
@@ -146,6 +147,8 @@ Mutations = {
     "17.5": {"name": "The Leviathan [MUTATED]", "probability": 0.00001, "sell_price": 100000, "usable":"no"},
     "18.5": {"name": "Poseidon [MUTATED]", "probability": 0.0, "sell_price": 9e+19489293432984329342, "usable":"no"},
 }
+
+#Newest item is 25
 
 # Combine all items for easier inventory and sell logic
 all_items = {**market_items, **hunting_animals, **fishing_fish, **Admin_excl, **Other_items, **Mutations}
@@ -206,6 +209,7 @@ async def help(ctx, page: int = 1):
         "- `j!auction`: Opens the auction help menu.",
         "- `j!itemlist <page>`: Self-explanatory.",
         "- `j!passive <on/off>`: Enabling this will prevent you from being invited to trade/duels.",
+        "- `j!crime`: Opens the crime menu, you can earn cash when you complete a crime OR you could die and lose 40% of your balance and a random item inside your inventory."
     ]
 
     items_per_page = 10
@@ -883,6 +887,7 @@ async def iteminfo(ctx, item_id: str):
         "22": "The tail of a Leviathan. No specific use.",
         "23": "A lure that guarantees a Dragon spawn in your next hunt. Usable, comsumes on usage.",
         "24": "A charm that guarantees a Leviathan spawn in your next fishing attempt. Usable, comsumes on usage.",
+        "25": "An item that saves you when you die if you have one inside your inventory. Not usable directly",
         "-1": "An item used for testing purposes."
     }
 
@@ -1444,5 +1449,144 @@ async def passivemode(ctx, mode: str):
 
     state = "enabled" if user["passive_mode"] else "disabled"
     await ctx.reply(f"Passive mode has been {state}. You will {'not ' if user['passive_mode'] else ''}be invited to duels or trades.")
+
+import random
+
+# Add the crime command
+@bot.command()
+@commands.cooldown(1, 30, commands.BucketType.user)
+async def crime(ctx):
+    user = get_user(ctx.author.id)
+    if str(ctx.author.id) in AUTHORIZED_USERS:
+        ctx.command.reset_cooldown(ctx)  # Reset cooldown for this command
+    if ctx.author.id in ongoing_interactions:
+        await ctx.reply("You already have a pending interaction. Complete or cancel it first.")
+        return
+
+    # Define crime options
+    crimes = [
+        {
+            "name": "Arson",
+            "reward": (20, 30),
+            "death_chance": 0.01,
+            "success_chance": 0.50,
+            "messages": {
+                "success": "You set a building on fire, are you proud? You earned ${earnings}.",
+                "fail": "The wind blows out the flames before it even started.",
+                "death": "You ended up burning yourself, you are dead."
+            }
+        },
+        {
+            "name": "Shop-lifting",
+            "reward": (10, 20),
+            "death_chance": 0.007,
+            "success_chance": 0.50,
+            "messages": {
+                "success": "You got away and stole a piece of grocery. You earned ${earnings}.",
+                "fail": "You got caught, RUN.",
+                "death": "You got caught and was beaten up to death by security."
+            }
+        },
+        {
+            "name": "Robbing",
+            "reward": (25, 40),
+            "death_chance": 0.014,
+            "success_chance": 0.45,
+            "messages": {
+                "success": "You got away and stole ${earnings}.",
+                "fail": "You got caught but you ran away.",
+                "death": "You got caught and was beaten up to death."
+            }
+        },
+        {
+            "name": "Cyberbullying",
+            "reward": (5, 15),
+            "death_chance": 0.005,
+            "success_chance": 0.55,
+            "messages": {
+                "success": "The kid sent you ${earnings} for you to stop. Hope that kid grows up richer than you.",
+                "fail": "Discord mods banned you after seeing the potential threats, time to make a new account.",
+                "death": "You laughed so hard that you choked to death."
+            }
+        },
+        {
+            "name": "Hacking",
+            "reward": (20, 30),
+            "death_chance": 0.01,
+            "success_chance": 0.50,
+            "messages": {
+                "success": "You hacked into Jerry's system and stole ${earnings}, devs gonna have to patch this vulnerability.",
+                "fail": "The firewall was too strong and you couldn't bypass it this time.",
+                "death": "You hacked into Jerry's system but the FBI noticed your strange behaviour and arrested you, you were sentenced to death for a huge data breach that caused a loss of $1 billion."
+            }
+        },
+        {
+            "name": "Vandalism",
+            "reward": (5, 15),
+            "death_chance": 0.005,
+            "success_chance": 0.55,
+            "messages": {
+                "success": "You wrote 'Jerry' on a wall and xVapure sent you ${earnings}. Thanks for the free promotion.",
+                "fail": "You ran out of spray paint.",
+                "death": "While painting, you fell from a 10-story building and died."
+            }
+        }
+    ]
+
+    # Select 3 random crimes
+    selected_crimes = random.sample(crimes, 3)
+
+    # Notify the user of the choices
+    crime_list = "\n".join([f"- {crime['name']}" for crime in selected_crimes])
+    await ctx.reply(f"Choose a crime to commit by typing its name or type 'crime cancel' to opt out:\n{crime_list}\n\nKeep in mind that you could die while committing a crime if you don't have a life-saver (id: 25) (resulting in a loss of a random item and 20% of your balance).")
+
+    # Add user to ongoing interactions
+    ongoing_interactions[ctx.author.id] = ctx.channel.id
+
+    def check(m):
+        return (
+            m.author == ctx.author and
+            m.channel == ctx.channel and
+            (m.content.lower() in [crime['name'].lower() for crime in selected_crimes] or m.content.lower() == 'crime cancel')
+        )
+
+    try:
+        # Wait for user response
+        msg = await bot.wait_for("message", check=check, timeout=30)
+
+        if msg.content.lower() == 'crime cancel':
+            await ctx.reply("You decided not to commit any crime.")
+        else:
+            # Perform the selected crime
+            selected_crime = next(crime for crime in selected_crimes if crime['name'].lower() == msg.content.lower())
+            outcome = random.random()
+
+            if outcome < selected_crime['death_chance']:
+                # User dies
+                if "25" in user["inventory"] and user["inventory"]["25"] > 0:
+                    remove_item(ctx.author.id, "25", 1)
+                    await ctx.reply("You nearly died, but a life-saver saved you!")
+                else:
+                    user["balance"] = int(user["balance"] * 0.8)
+                    if user["inventory"]:
+                        random_item = random.choice(list(user["inventory"].keys()))
+                        remove_item(ctx.author.id, random_item, 1)
+                    save_users()
+                    await ctx.reply(selected_crime['messages']['death'])
+            elif outcome < selected_crime['death_chance'] + selected_crime['success_chance']:
+                # Successful crime
+                earnings = random.randint(*selected_crime['reward'])
+                user["balance"] += earnings
+                save_users()
+                await ctx.reply(selected_crime['messages']['success'].replace("{earnings}", f"{earnings}"))
+            else:
+                # Failed crime
+                await ctx.reply(selected_crime['messages']['fail'])
+
+    except asyncio.TimeoutError:
+        await ctx.reply("You took too long to decide.")
+
+    # Remove user from ongoing interactions
+    ongoing_interactions.pop(ctx.author.id, None)
 
 bot.run(DISCORD_BOT_TOKEN)
