@@ -889,7 +889,8 @@ async def iteminfo(ctx, item_id: str):
         "22": "The tail of a Leviathan. No specific use.",
         "23": "A lure that guarantees a Dragon spawn in your next hunt. Usable, comsumes on usage.",
         "24": "A charm that guarantees a Leviathan spawn in your next fishing attempt. Usable, comsumes on usage.",
-        "25": "An item that saves you when you die if you have one inside your inventory. Not usable directly",
+        "25": "An item that saves you when you die if you have one inside your inventory. Not usable directly, consumes per failed death.",
+        "26": "An item that saves you from being robbed once. Not usable directly, consumes per failed robbery.",
         "-1": "An item used for testing purposes."
     }
 
