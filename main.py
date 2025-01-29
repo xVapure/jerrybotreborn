@@ -1468,8 +1468,6 @@ async def passivemode(ctx, mode: str):
     state = "enabled" if user["passive_mode"] else "disabled"
     await ctx.reply(f"Passive mode has been {state}. You will {'not ' if user['passive_mode'] else ''}be invited to duels or trades. You also cannot be robbed or rob from anyone.")
 
-import random
-
 # Add the crime command
 @bot.command()
 @commands.cooldown(1, 30, commands.BucketType.user)
