@@ -10,3 +10,5 @@ A Discord bot with economics features, I'm too lazy to explain just setup and us
 
 
 1/28/2025 (xVapure), the codes are made by me, do not steal my code or monetize it without my permissions. You can customize however you want. For any enquiries, email me at `vapureofficial@gmail.com`
+
+If you want an unstable version of Jerry, refer to https://github.com/xVapure/jerrybotrebornv2/ (which will receive frequent updates and supports slash commands).
